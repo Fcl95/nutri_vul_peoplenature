@@ -1,3 +1,15 @@
+# ============================================================
+#   Nutrient Composition and PCoA Analysis of Food Sources
+#   Author: Fabricio Albuquerque
+#   Description:
+#   This script computes community‐weighted means (CWM) of
+#   nutrient traits based on monthly food consumption data,
+#   performs PCoA on Euclidean distances among municipalities,
+#   and visualizes functional space and nutrient loadings.
+# ============================================================
+
+# ------------------ Load Required Packages ------------------
+
 library(FactoMineR)
 library(factoextra)
 library(ggpubr)
@@ -7,12 +19,17 @@ library(readxl)
 library(patchwork)
 library(sp)
 
-#-----------data-----------------------
+# ----------------------- Input Data --------------------------
+
+# Matrix of nutritional traits for each food resource.
+# Rows = food items, columns = nutrients (Ca, Fe, Zn, Se, Omega-3)
 
 food_source_nutri <- read_excel("fish_species/food_source_nutri.xlsx",
                                 sheet = "Planilha1") |> 
   column_to_rownames(var = "food_resource")
 
+# Monthly food consumption per municipality.
+# Rows = municipalities, columns = food items.
 cons_food_month <- read_excel("fish_species/cons_food_month.xlsx",
                               sheet = "Planilha1") |> 
   select(id_annm, 5:21) |> 
@@ -20,8 +37,11 @@ cons_food_month <- read_excel("fish_species/cons_food_month.xlsx",
 
 cons_food_mon2 <- read_excel("fish_species/cons_food_month.xlsx")                      
 cons_food_binary <- ifelse(cons_food_month > 0, 1, 0)
-#-----------func div-----------------------
 
+# ------------------ Nutrient Composition -------------------
+
+# Compute Community‐Weighted Means (CWM) of nutrients for each municipality.
+# This summarises the nutrient content of the local diet.
 cwm_fren <- functcomp(food_source_nutri, as.matrix(cons_food_binary))  
 head(cwm_fren)
 cwm_dis <- vegdist(cwm_fren, "euclidean")
@@ -37,8 +57,13 @@ cwm_dis <- vegdist(cwm_fren, "euclidean")
 
 #cwm_dis <- vegdist(cwm_fren, "euclidean") 
 
+# ---------------- PCA / PCoA Ordination ----------------------
+
+# Perform Principal Coordinates Analysis (PCoA) using Cailliez correction.
+
 cwm_pcoa <- pcoa(D = cwm_dis, correction = "cailliez")  
 
+#Percentage of variation explained by the first two axes.
 100 * (cwm_pcoa$values[, 1]/cwm_pcoa$trace)[1]#65.10% de explicação do eixo 1  
 100 * (cwm_pcoa$values[, 1]/cwm_pcoa$trace)[2] #> [1] 34.62% eixo 2 
 #100 * (cwm_pcoa$values[, 1]/cwm_pcoa$trace)[3]
@@ -49,7 +74,7 @@ pcoa_eixos <- data.frame(muni = cons_food_mon2$municipality, pcoa_eixos)
 
 correlations <- cor(cwm_fren, pcoa_eixos[,2:3])
 
-# Plotar as duas primeiras dimensões
+# ---------------- Loadings (Nutrient Vectors) ----------------
 
 pca_load <- 
   as_tibble(correlations, rownames = 'variable') %>% 
@@ -60,11 +85,15 @@ pca_load <-
                                   'total_omega_3_pufa_g_100g' = 'Omega-3',
                                   'selenium_mg_100g' = 'Selenium',
                                   'zinc_mg_100g' = 'Zinc'))
+
+# Compute convex hull of all municipalities in PCoA space.
 pca_hull <- 
   pcoa_eixos %>%
   slice(chull(Axis.1, Axis.2))
 
+# ------------------ Global PCoA Plot --------------------------
 
+# Plot functional dietary space and nutrient loading vectors.
 poca_muni <- ggplot(pcoa_eixos, aes(x = Axis.1, y = Axis.2)) +
   geom_point(size = 3, alpha = 0.5) +
   geom_polygon(data = pca_hull,
@@ -98,7 +127,11 @@ poca_muni <- ggplot(pcoa_eixos, aes(x = Axis.1, y = Axis.2)) +
         legend.position = c(0.9, 0.85),
         legend.title = element_text(size = 10))
 
-#------------------Touros-------------------------
+# ---------------- Plots for Each Municipality -----------------
+# The following blocks create one plot per municipality, showing its
+# convex hull (functional dietary space) in relation to the full space.
+
+# Example for Touros (same workflow repeated below)
 
 pca_hull_tr <- 
   pcoa_eixos %>% 
@@ -135,6 +168,10 @@ poca_tr <- ggplot(filter(pcoa_eixos, muni == "Touros"),
         axis.text.x = element_blank(),
         legend.position = c(0.9, 0.85),
         legend.title = element_text(size = 10))
+
+# (Remaining municipalities follow the same structure)
+# Rio do Fogo (RF), Baía Formosa(BF), Ipojuca (IP), Tamandaré (TM), S.J. da Coroa Grande (SJ)
+# Each generates a polygon of the municipality-specific functional space
 
 #------------------RF-------------------------
 
@@ -326,7 +363,8 @@ poca_sj <- ggplot(filter(pcoa_eixos, muni == "Sao Jose da Coroa"),
         legend.position = c(0.9, 0.85),
         legend.title = element_text(size = 10))
 
-#---juntando os plots-----------------
+
+# ---------------- Combine All Municipality Plots --------------
 pcoa_muni_sep <- (poca_tr + poca_rf + poca_bf)/ (poca_ip + poca_tm + poca_sj)
 #plot_annotation(tag_levels = c('A'), tag_suffix = ')')
 
@@ -336,15 +374,21 @@ poca_muni/pcoa_muni_sep
 pcoa_muni_sep 
 #--------------------------------------
 
+# ----------------- Convex Hull Area Calculation ---------------
+
+# Example: compute functional space area for Touros
+
 polygon2 <- Polygon(pca_hull_tr[,2:3])
 area2 <- polygon2@area
 print(area2)
 
 35.5/75.3
 
+# Repeat for each municipality
 
+# --------------- Explained Variation Plot ----------------------
 
-#---------explained variation-----------
+# Extract proportion of explained variance for each PCoA axis
 explained_variance <-cwm_pcoa$values$Relative_eig
 
 barplot(explained_variance[1:5], 
@@ -358,45 +402,3 @@ barplot(explained_variance[1:5],
 )
 
 #-----------------------------------------------------
-ssp_pca_var <- consumo_pesc[, 7:15]
-ssp_pca_var <-as.data.frame(ssp_pca_var)
-
-row.names(ssp_pca_var) <- consumo_pesc$id_annm 
-
-ssp_pca_var <- decostand(x = ssp_pca_var, method = "hellinger")
-
-pca.p <- PCA(X = ssp_pca_var, 
-             #scale.unit = TRUE, 
-             graph = FALSE)
-
-print(row.names(ssp_pca_var))
-pca.p$eig
-
-p1 <- fviz_pca_biplot(X = pca.p,
-                      #repel = TRUE,
-                      geom.ind = "point", 
-                      fill.ind = consumo_pesc$municipality, 
-                      col.ind = "black",
-                      alpha.ind = 0.7,
-                      pointshape = 21, 
-                      pointsize = 4,
-                      palette = c("#3182bd", "#a50f15", 
-                                  "#fecc5c", "#fb6a4a",
-                                  "purple", "orange3"),
-                      addEllipses = TRUE,
-                      col.var = "#636363",
-                      arrowsize = 0.9,
-                      labelsize = 5,
-                      invisible = "quali",
-                      title = NULL,
-                      legend.title = "Municipality") +
-  labs(title = "A) PCA plot axis 1 and 2",
-       x = "PC1 (24.1%)", y = "PC2 (15.5%)") +
-  theme_bw(base_size = 14) +
-  theme(legend.position = c(0.13, 0.8),
-        legend.background = element_blank(),
-        panel.grid = element_blank(),
-        legend.title = element_text(size = 12),
-        legend.text = element_text(size = 10))
-
-res.desc <- dimdesc(pca.p, axes = c(1,2), proba = 0.05)

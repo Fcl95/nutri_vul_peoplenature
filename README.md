@@ -19,6 +19,6 @@ This repository provides a reproducible workflow used to:
 
 ## 📁 Repository Structure
 
-- data aand fish_species/ # Raw and processed datasets used in the analyses
+- data aand fish_species/ # Raw and processed databases used in the analyses
 - scripts/ # R scripts used for statistical analyses and visualizations
 - figs/ # Figures generated from the analyses

@@ -1,22 +1,41 @@
+#====================================================================
+# Analysis of Monthly Fish Consumption and PERMANOVA by Municipality
+#--------------------------------------------------------------------
+# This script:
+# 1) Loads and cleans consumption data
+# 2) Generates a heatmap of average monthly intake of fish species
+# 3) Runs PERMANOVA (adonis2) to test differences between municipalities
+# 4) Performs pairwise PERMANOVA using custom function pairwise.adonis
+#====================================================================
+
+
+#--------------------------- Load packages ---------------------------
+
 library(tidyverse)
 library(readxl)
 library(janitor)
-#----------------
+library(vegan)
 
+#--------------------------- Load dataset ----------------------------
 
+# Import dataset and clean column names
 cons_food_month <- read_excel("fish_species/cons_food_month.xlsx",
                               sheet = "Planilha1") |> 
   clean_names() |> 
   select(3, 13:21)
 
+#---------------------- Mean consumption per municipality ------------
+
+# Compute mean values of all fish species per municipality
 cons_muni <- cons_food_month |> 
   group_by(municipality) |> 
   summarise_all(mean)
 
+# Convert to long format for heatmap plotting
 cons_muni_lg <- cons_muni |> 
   pivot_longer(cols = -municipality, names_to = "fish_sp", values_to = "value")
 
-
+#----------------------------- Heatmap -------------------------------
 ggplot(cons_muni_lg, aes(x = municipality, y = fish_sp, fill= value)) + 
   geom_tile() +
   scale_fill_gradient(low="#eff3ff", high="#08519c") +
@@ -48,26 +67,16 @@ ggplot(cons_muni_lg, aes(x = municipality, y = fish_sp, fill= value)) +
         legend.box.just = "center",
         legend.title = element_text(size = 12)) 
 
-#----------Permanova----------------------------
+#=====================================================================
+#                           PERMANOVA
+#=====================================================================
 
-# Instalar e carregar o pacote vegan (caso ainda não tenha instalado)
-# if (!require("vegan")) install.packages("vegan")
-library(vegan)
-# 
-# # Exemplo de dados simulados (substitua pelos seus dados reais)
-# set.seed(123)
-# dados <- data.frame(
-#   Municipio = rep(c("Mun1", "Mun2", "Mun3", "Mun4", "Mun5", "Mun6"), each = 10),
-#   Especie1 = rpois(60, lambda = rep(5:10, each = 10)),
-#   Especie2 = rpois(60, lambda = rep(3:8, each = 10)),
-#   Especie3 = rpois(60, lambda = rep(2:7, each = 10))
-# )
-# 
-# # Verifique a estrutura dos dados
-# head(dados)
+# Purpose:
+# Test whether the composition of consumed fish species differs
+# among municipalities.
+#---------------------------------------------------------------------
 
-# Prepare os dados
-# 1. Extraia as variáveis de espécies (composição)
+# 1. Extract compositional matrix (all species columns)
 composicao <- cons_food_month[, -1]
 
 # 2. Crie a matriz de distâncias (usando a distância de Bray-Curtis)
@@ -79,13 +88,18 @@ resultado_permanova <- adonis2(distancia ~ municipality, data = cons_food_month,
 # Exibir resultados
 print(resultado_permanova)
 
-# Visualização (opcional)
+# Optional: NMDS visualization
 # Gráfico de NMDS para explorar visualmente a separação entre municípios
 # nmds <- metaMDS(composicao, distance = "bray", k = 2, trymax = 100)
 # plot(nmds, type = "t", main = "NMDS - Composição de Espécies por Município")
 # ordihull(nmds, groups = cons_food_month$municipality, draw = "polygon", col = 1:6, label = TRUE)
 
-source("C:/Users/fca95/OneDrive/Documentos/Doutorado/Nutri_vuln/pairwise.adonis.R")
+#=====================================================================
+#                     Pairwise PERMANOVA comparisons
+#=====================================================================
+
+# Import custom function for pairwise adonis
+source("scripts_ok/pairwise.adonis.R")
 
 # Matriz de distâncias (usando Bray-Curtis, como no exemplo anterior)
 distancia <- vegdist(composicao, method = "bray")
@@ -99,7 +113,7 @@ comparacoes_par <- pairwise.adonis(distancia,
 print(comparacoes_par)
 
 
-# Converter resultados em um dataframe
+#---------------------- Format pairwise results ----------------------
 tabela_resultados <- as.data.frame(comparacoes_par)
 
 # Renomear as colunas (ajuste conforme necessário)
@@ -116,5 +130,5 @@ tabela_resultados <- tabela_resultados[, -8]
 
 
 # Salvar como CSV
-openxlsx::write.xlsx(tabela_resultados, 
-                     file = "resultados_comparacoes.xlsx")
+# openxlsx::write.xlsx(tabela_resultados, 
+#                      file = "resultados_comparacoes.xlsx")

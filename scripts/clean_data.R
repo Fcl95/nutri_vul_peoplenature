@@ -115,7 +115,7 @@ traits <- traits |>
           # Depth_mean,
           # Diel_activity, Size_group, 
           # Level_water, Home_range
-          )
+  )
 
 # ----------------------------------------------------------
 # Extract species names from nutrient dataset
@@ -125,7 +125,7 @@ dt_nms <- data |>
   select(species)
 
 fish_traits <- inner_join(traits, dt_nms, 
-                         by = join_by(Name == species))
+                          by = join_by(Name == species))
 
 
 
@@ -248,3 +248,4 @@ densidade_capped <- nutrients_percent %>%
 fishes_fba <- left_join(fishes_fb, densidade_capped)
 #----------------------------------------
 #openxlsx::write.xlsx(fishes_fba, "fish_species/fishes_fb.xlsx")
+
