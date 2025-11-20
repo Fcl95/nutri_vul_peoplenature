@@ -15,3 +15,10 @@ This repository provides a reproducible workflow used to:
 - Assess how fish loss could impact nutrient supply for local communities.
 
 - Perform statistical analyses including permutation tests, PCA, and trait-based comparisons.
+
+
+## 📁 Repository Structure
+
+- data aand fish_species/ # Raw and processed datasets used in the analyses
+- scripts/ # R scripts used for statistical analyses and visualizations
+- figs/ # Figures generated from the analyses
